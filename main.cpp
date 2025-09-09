@@ -1,110 +1,108 @@
 #include <Novice.h>
-#include <vector>
-#include <cmath> // sin, cos
-#include <cstdlib> // rand
+#include <cstdio>
 
-const char kWindowTitle[] = "不思議な波紋エフェクト";
-const int kWindowWidth = 1280;
-const int kWindowHeight = 720;
+const char kWindowTitle[] = "Clock Timer";
 
-
-struct Ripple {
-    float x, y;
-    float radius;
-    float alpha;
-    float expandSpeed;
-
-    bool isAlive() const {
-        return alpha > 0.0f;
-    }
-
-    void Update() {
-        radius += expandSpeed;
-        alpha -= 3.0f; // 透明度を減らす
-        if (alpha < 0.0f) {
-            alpha = 0.0f;
-        }
-    }
-
-    void Draw() const {
-        // ARGBの32bitカラーを手動で作成
-        unsigned int color =
-            (static_cast<unsigned int>(alpha) << 24) | // A
-            (255 << 16) | // R
-            (255 << 8) |  // G
-            (255);        // B
-
-        Novice::DrawEllipse(static_cast<int>(x), static_cast<int>(y),
-            static_cast<int>(radius), static_cast<int>(radius),
-            0.0f, color, kFillModeWireFrame);
-    }
+enum Scene {
+	TITLE,
+	GAME1,// ゲーム本編（ステージ1）
+	CLEAR,// クリア画面
 };
+int scene = TITLE;
 
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
-    Novice::Initialize(kWindowTitle, kWindowWidth, kWindowHeight);
 
-    char keys[256] = { 0 };
-    char preKeys[256] = { 0 };
+	Novice::Initialize(kWindowTitle, 1280, 720);
 
-    std::vector<Ripple> ripples;
+	char keys[256] = { 0 };
+	char preKeys[256] = { 0 };
 
-    while (Novice::ProcessMessage() == 0) {
-        Novice::BeginFrame();
+	// 数字画像をロード
+	int numberGrahs[10] = {};
+	for (int i = 0; i < 10; i++) {
+		char filePath[64];
+		snprintf(filePath, sizeof(filePath), "./Resources/%d.png", i); // 安全な関数
+		numberGrahs[i] = Novice::LoadTexture(filePath);
+	}
+	const int graphWidth = 71;
+	int frame = 0;// フレームカウント
+	int seconds = 0; // 秒数
 
-        memcpy(preKeys, keys, 256);
-        Novice::GetHitKeyStateAll(keys);
 
-        ///
-        /// ↓更新処理ここから
-        ///
-        int mouseX, mouseY;
-        Novice::GetMousePosition(&mouseX, &mouseY);
+	while (Novice::ProcessMessage() == 0) {
+		Novice::BeginFrame();
 
-        // 左クリックで波紋を追加
-        if (keys[DIK_SPACE] && !preKeys[DIK_SPACE]) {
-            Ripple newRipple;
-            newRipple.x = static_cast<float>(mouseX);
-            newRipple.y = static_cast<float>(mouseY);
-            newRipple.radius = 0.0f;
-            newRipple.alpha = 255.0f;
-            newRipple.expandSpeed = 4.0f + (rand() % 100) / 50.0f; // ランダム感
+		memcpy(preKeys, keys, 256);
+		Novice::GetHitKeyStateAll(keys);
 
-            ripples.push_back(newRipple);
+		///
+		/// 更新処理
+		///
+		switch (scene)
+		{
+		case TITLE:
+			if (preKeys[DIK_SPACE] == 0 && keys[DIK_SPACE] != 0) {
+				scene = GAME1;
+				frame = 0; // タイマーをリセット
+				seconds = 0;
+			}
+			break;
 
-        }
+		case GAME1:
+			frame++;
+			seconds = frame / 60; // ここの値を変更
 
-        // 各波紋を更新
-        for (auto& ripple : ripples) {
-            ripple.Update();
-        }
+			if (seconds >= 60) {
+				scene = CLEAR;
+			}
+			break;
 
-        // 消えた波紋を削除
-        ripples.erase(
-            std::remove_if(ripples.begin(), ripples.end(),
-                [](const Ripple& r) { return !r.isAlive(); }),
-            ripples.end());
+		case CLEAR:
+			if (preKeys[DIK_SPACE] == 0 && keys[DIK_SPACE] != 0) {
+				scene = TITLE;
+			}
+			break;
+		}
 
-        ///
-        /// ↑更新処理ここまで
-        ///
+		///
+		/// 描画処理
+		///
+		switch (scene)
+		{
+		case TITLE:
+			Novice::ScreenPrintf(50, 50, "TITLE SCREEN");
+			Novice::ScreenPrintf(50, 70, "Press SPACE to start the game.");
+			break;
 
-        ///
-        /// ↓描画処理ここから
-        ///
-        for (const auto& ripple : ripples) {
-            ripple.Draw();
-        }
-        ///
-        /// ↑描画処理ここまで
-        ///
+		case GAME1: {
+			// 桁ごとに分解
+			int numbersArray[2];
+			numbersArray[0] = seconds / 10; // 十の位
+			numbersArray[1] = seconds % 10; // 一の位
 
-        Novice::EndFrame();
+			for (int i = 0; i < 2; i++) {
+				Novice::DrawSprite(
+					graphWidth * i, 0,
+					numberGrahs[numbersArray[i]],
+					0.5f, 0.5f, 0.0f, WHITE
+				);
+			}
+			Novice::ScreenPrintf(50, 50, "Seconds: %d", seconds);
+			break;
+		}
+		case CLEAR:
+			Novice::ScreenPrintf(500, 350, "GAME CLEAR!");
+			Novice::ScreenPrintf(450, 370, "Press SPACE to return to title.");
+			break;
+		}
 
-        if (preKeys[DIK_ESCAPE] == 0 && keys[DIK_ESCAPE] != 0) {
-            break;
-        }
-    }
+		Novice::EndFrame();
 
-    Novice::Finalize();
-    return 0;
+		if (preKeys[DIK_ESCAPE] == 0 && keys[DIK_ESCAPE] != 0) {
+			break;
+		}
+	}
+
+	Novice::Finalize();
+	return 0;
 }
