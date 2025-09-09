@@ -70,6 +70,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             newRipple.expandSpeed = 4.0f + (rand() % 100) / 50.0f; // ランダム感
 
             ripples.push_back(newRipple);
+
         }
 
         // 各波紋を更新
