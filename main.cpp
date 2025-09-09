@@ -2,148 +2,108 @@
 
 const char kWindowTitle[] = "BGM";
 
-// Windowsアプリでのエントリーポイント(main関数)
+// ゲームのシーンを定義
+enum Scene {
+    SCENE1, // シーン1
+    SCENE2, // シーン2
+    SCENE3, // シーン3
+};
+
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
+    // ライブラリ初期化
+    Novice::Initialize(kWindowTitle, 1280, 720);
 
-	// ライブラリの初期化
-	Novice::Initialize(kWindowTitle, 1280, 720);
+    // キー入力用
+    char keys[256] = { 0 };     // 今のキー状態
+    char preKeys[256] = { 0 };  // 1フレーム前のキー状態
 
-	// キー入力結果を受け取る箱
-	char keys[256] = { 0 };
-	char preKeys[256] = { 0 };
+    // サウンドデータ読み込み
+    int bgmScene1 = Novice::LoadAudio("./Resources/Sounds/title.mp3");   // シーン1用
+    int bgmScene2 = Novice::LoadAudio("./Resources/Sounds/ketei.mp3");  // シーン2用
+    int bgmScene3 = Novice::LoadAudio("./Resources/Sounds/cancel.mp3"); // シーン3用
 
+    int playHandle = -1; // 再生中サウンドのハンドル
+    int scene = SCENE1;  // 最初はシーン1から開始
 
-	enum Scene {
-		SCENE1,//0
-		SCENE2,//1
-		SCENE3,//2
-	};
+    // ================= メインループ =================
+    while (Novice::ProcessMessage() == 0) {
+        Novice::BeginFrame();
 
-	int fanfareSE = Novice::LoadAudio("./Resources/Sounds/title.mp3");
-	int mokugyoSE = Novice::LoadAudio("./Resources/Sounds/ketei.mp3");
-	int startSE = Novice::LoadAudio("./Resources/Sounds/cancel.mp3");
-	int playHandle = -1;
-	int scene = SCENE1;
-	int playingSound = 0;
+        // 入力を更新（前のフレームの状態をコピー → 今の状態を取得）
+        memcpy(preKeys, keys, 256);
+        Novice::GetHitKeyStateAll(keys);
 
-	// ウィンドウの×ボタンが押されるまでループ
-	while (Novice::ProcessMessage() == 0) {
-		// フレームの開始
-		Novice::BeginFrame();
+        // ================= 更新処理 =================
+        switch (scene) {
+        case SCENE1:
+            // サウンドが再生されていなければ再生開始
+            if (!Novice::IsPlayingAudio(playHandle)) {
+                playHandle = Novice::PlayAudio(bgmScene1, false, 1.0f);
+            }
+            // Spaceキーでシーン2へ移動
+            if (preKeys[DIK_SPACE] == 0 && keys[DIK_SPACE]) {
+                scene = SCENE2;              // SCENE2に遷移
+                Novice::StopAudio(playHandle); // 再生中の音を止める
+            }
+            break;
 
-		// キー入力を受け取る
-		memcpy(preKeys, keys, 256);
-		Novice::GetHitKeyStateAll(keys);
+        case SCENE2:
+            // Enterキーを押したら bgmScene2 を再生
+            if (preKeys[DIK_RETURN] == 0 && keys[DIK_RETURN]) {
+                playHandle = Novice::PlayAudio(bgmScene2, false, 1.0f);
+            }
 
+            // Spaceキーでシーン3へ移動
+            if (preKeys[DIK_SPACE] == 0 && keys[DIK_SPACE]) {
+                scene = SCENE3;              // SCENE3に遷移
+                Novice::StopAudio(playHandle); // 再生中の音を止める
+            }
+            break;
 
+        case SCENE3:
+            // Enterキーを押したら bgmScene3 を再生
+            if (preKeys[DIK_RETURN] == 0 && keys[DIK_RETURN]) {
+                playHandle = Novice::PlayAudio(bgmScene3, false, 1.0f);
+            }
 
-		///
-		/// ↓更新処理ここから
-		///
-		/// 
+            // Spaceキーでシーン1へ戻る
+            if (preKeys[DIK_SPACE] == 0 && keys[DIK_SPACE]) {
+                scene = SCENE1;              // SCENE1に遷移
+                Novice::StopAudio(playHandle); // 再生中の音を止める
+            }
+            break;
+        }
 
+        // ================= 描画処理 =================
+        switch (scene) {
+        case SCENE1:
+            // 紫色の背景
+            Novice::DrawBox(0, 0, 1280, 720, 0.0f, 0xffaaaaff, kFillModeSolid);
+            break;
+        case SCENE2:
+            // 緑色の背景
+            Novice::DrawBox(0, 0, 1280, 720, 0.0f, GREEN, kFillModeSolid);
+            Novice::ScreenPrintf(10, 40, "Press ENTER to play bgmScene2");
+            break;
+        case SCENE3:
+            // 青色の背景
+            Novice::DrawBox(0, 0, 1280, 720, 0.0f, BLUE, kFillModeSolid);
+            break;
+        }
 
-		switch (scene)
-		{
-		case SCENE1:
-			if (!Novice::IsPlayingAudio(playHandle)) //サウンドが再生されているか
-			{
-				playHandle = Novice::PlayAudio(fanfareSE, false, 1.0f);//サウンドを再生する
-			}
+        // デバッグ情報を表示
+        Novice::ScreenPrintf(10, 0, "Scene: %d", scene);
+        Novice::ScreenPrintf(10, 20, "SPACE: change scene / ESC: exit");
 
-			if (preKeys[DIK_SPACE] == 0 && keys[DIK_SPACE])//押した時、押される前
-			{
-				scene = SCENE2;//SCENE1がSCENE2に変わる
-				Novice::StopAudio(playHandle);//サウンドが停止される
-			}
-			break;
-		case SCENE2:
-			if (!Novice::IsPlayingAudio(playHandle))//サウンドが再生されているか
-			{
-				playHandle = Novice::PlayAudio(mokugyoSE, false, 1.0f);//サウンドを再生する
+        Novice::EndFrame();
 
-			}
-			if (preKeys[DIK_SPACE] == 0 && keys[DIK_SPACE])//押した時、押される前
-			{
-				scene = SCENE3;//SCENE2がSCENE3に変わる
-				Novice::StopAudio(playHandle);//サウンドが停止される
-			}
+        // ESCキーで終了
+        if (preKeys[DIK_ESCAPE] == 0 && keys[DIK_ESCAPE]) {
+            break;
+        }
+    }
 
-			break;
-		case SCENE3:
-			if (!Novice::IsPlayingAudio(playHandle)) //サウンドが再生されているか
-			{
-				playHandle = Novice::PlayAudio(startSE, false, 1.0f);//サウンドを再生する
-			}
-			if (preKeys[DIK_SPACE] == 0 && keys[DIK_SPACE])//押した時、押される前
-			{
-				scene = SCENE1;//SCENE3がSCENE1に変わる
-				Novice::StopAudio(playHandle);//サウンドが停止される
-			}
-			break;
-
-		}
-
-		if (scene == SCENE1)//sceneがSCENE1のとき
-		{
-			playingSound = 1;
-
-		}
-		if (scene != SCENE1)//sceneがSCENE1ではないとき
-		{
-			playingSound = 0;
-
-		}
-		///
-		/// ↑更新処理ここまで
-		///
-
-
-
-
-
-
-
-		///
-		/// ↓描画処理ここから
-		///
-
-
-		switch (scene)
-		{
-		case SCENE1:
-			Novice::DrawBox(static_cast<int> (0.0f), static_cast<int>(0.0f), static_cast <int>(1280.0f), static_cast<int>(720.0f), static_cast<int>(0.0f), 0xffaaaaff, kFillModeSolid);
-			break;
-		case SCENE2:
-			Novice::DrawBox(static_cast<int>(0.0f), static_cast<int>(0.0f), static_cast<int>(1280.0f), static_cast<int>(720.0f), 0.0f, GREEN, kFillModeSolid);
-			break;
-		case SCENE3:
-			Novice::DrawBox(static_cast<int>(0.0f), static_cast<int>(0.0f), static_cast<int>(1280.0f), static_cast<int>(720.0f), 0.0f, BLUE, kFillModeSolid);
-			break;
-		}
-
-
-
-		Novice::ScreenPrintf(10, 0, "SceneNo %d", scene);
-		Novice::ScreenPrintf(10, 20, "is playing sound %d Push spact to change scene ", playingSound);
-
-
-
-		///
-		/// ↑描画処理ここまで
-		///
-
-		// フレームの終了
-		Novice::EndFrame();
-
-		// ESCキーが押されたらループを抜ける
-		if (preKeys[DIK_ESCAPE] == 0 && keys[DIK_ESCAPE] != 0) {
-			break;
-		}
-	}
-
-	// ライブラリの終了
-	Novice::Finalize();
-	return 0;
-
+    // ライブラリ終了処理
+    Novice::Finalize();
+    return 0;
 }
